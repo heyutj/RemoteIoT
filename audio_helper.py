@@ -41,7 +41,7 @@ class OutAudio(object):
         self.clean_buffer()
 
     def playFrame(self,data):
-        self.stream.write(data)
+        self.stream.write(bytes(data))
 
     def __del__(self):
         self.stream.close()
