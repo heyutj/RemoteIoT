@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from pyaudio import PyAudio, paInt16
 import numpy as np
-from datetime import datetime
 import wave
 
 
