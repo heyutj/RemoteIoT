@@ -1,10 +1,12 @@
 import logging
 import asyncio
-from auidio_helper import InAudio
+from audio_helper import InAudio
 from hbmqtt.client import MQTTClient, ConnectException
+from hbmqtt.client import MQTTClient, ClientException
 from hbmqtt.mqtt.constants import *
 from datetime import datetime
 import os
+import numpy as np
 from hbmqtt.broker import Broker
 
 
@@ -54,39 +56,38 @@ class MClient(object):
         formatter = "[%(asctime)s] %(name)s {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
         logging.basicConfig(level=logging.INFO, format=formatter)
 
-    def public(self, topic, call_back):
-        asyncio.get_event_loop().run_until_complete(
-            self.public_coro(topic, call_back))
+    def pub_sub(self, args):
+        tasks = [self.pub_sub_coro(p[0], p[1], p[2]) for p in args]
+        asyncio.get_event_loop().run_until_complete(asyncio.wait(tasks))
 
     @asyncio.coroutine
-    def public_coro(self, topic, call_back):
-        try:
+    def pub_sub_coro(self, topic, call_back, atype):
+        if atype == "publish":
+            try:
+                C = MQTTClient()
+                ret = yield from C.connect(self.serverAddr)
+                while True:
+                    tmp=call_back()
+                    yield from C.publish(topic, tmp, qos=0x01)
+                    self.logger.info(
+                        "published " + datetime.now().strftime("%H:%M:%S") + topic)
+                yield from C.disconnect()
+                self.shouldstop[topic] = False
+            except ConnectException as ce:
+                self.logger.error("Connection failed: %s" % ce)
+                asyncio.get_event_loop().stop()
+        elif atype == "subscribe":
             C = MQTTClient()
-            ret = yield from C.connect(self.serverAddr)
-            while True:
-                print(1)
-                yield from C.publish(topic, call_back(), qos=0x01)
-                self.logger.info("messages published " +
-                                 datetime.now().strftime("%H:%M:%S"))
-            yield from C.disconnect()
-        except ConnectException as ce:
-            self.logger.error("Connection failed: %s" % ce)
-            asyncio.get_event_loop().stop()
-
-    def subscribe(self, topic, call_back):
-        asyncio.get_event_loop().run_until_complete(
-            self.subscribe_coro(topic, call_back))
-
-    @asyncio.coroutine
-    def subscribe_coro(self, topic, call_back):
-        C = MQTTClient()
-        yield from C.connect(self.serverAddr)
-        yield from C.subscribe([(topic, QOS_2), ])
-        self.logger.info("Subscribed")
-        try:
-            while True:
-                message = yield from C.deliver_message()
-                packet = message.publish_packet
-                call_back(packet.payload.data)
-        except ClientException as ce:
-            self.logger.error("Client exception: %s" % ce)
+            yield from C.connect(self.serverAddr)
+            yield from C.subscribe([(topic, QOS_2), ])
+            self.logger.info("Subscribed")
+            try:
+                while True:
+                    message = yield from C.deliver_message()
+                    packet = message.publish_packet
+                    call_back(packet.payload.data)
+                self.shouldstop[topic] = False
+            except ClientException as ce:
+                self.logger.error("Client exception: %s" % ce)
+        else:
+            raise ValueError("Unsupport type: " + atype)
