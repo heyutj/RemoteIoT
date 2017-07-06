@@ -12,7 +12,7 @@ class InAudio(object):
         self.stream = p.open(format=paInt16, channels=1, rate=self.SAMPLING_RATE,
                              input=True, frames_per_buffer=self.NUM_SAMPLES)
 
-    def getFrame(self):
+    def get_frame(self):
         return self.stream.read(self.NUM_SAMPLES)
 
 
@@ -40,16 +40,9 @@ class OutAudio(object):
         wf.close()
         self.clean_buffer()
 
-    def playFrame(self,data):
+    def play_frame(self,data):
         self.stream.write(bytes(data))
 
     def __del__(self):
         self.stream.close()
         self.p.terminate()
-
-
-# pi = InAudio()
-# po = OutAudio()
-# while True:
-#     string_audio_data = pi.getFrame()
-#     po.playFrame(string_audio_data)

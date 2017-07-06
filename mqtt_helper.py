@@ -8,6 +8,7 @@ from datetime import datetime
 import os
 import numpy as np
 from hbmqtt.broker import Broker
+import time
 
 
 class MServer(object):
@@ -41,8 +42,8 @@ class MServer(object):
         formatter = "[%(asctime)s] :: %(levelname)s :: %(name)s :: %(message)s"
         logging.basicConfig(level=logging.INFO, format=formatter)
 
-    def start_async(self):
-        yield from self.broker.start()
+    async def start_async(self):
+        await self.broker.start()
 
     def start(self):
         asyncio.get_event_loop().run_until_complete(self.start_async())
@@ -55,39 +56,50 @@ class MClient(object):
         self.logger = logging.getLogger(__name__)
         formatter = "[%(asctime)s] %(name)s {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
         logging.basicConfig(level=logging.INFO, format=formatter)
+        self.publish_list=[]
+        self.subscribe_list=[]
 
-    def pub_sub(self, args):
-        tasks = [self.pub_sub_coro(p[0], p[1], p[2]) for p in args]
-        asyncio.get_event_loop().run_until_complete(asyncio.wait(tasks))
+    def publish(self, args):
+        asyncio.get_event_loop().run_until_complete(
+            self.publish_async(args[0], args[1]))
 
-    @asyncio.coroutine
-    def pub_sub_coro(self, topic, call_back, atype):
-        if atype == "publish":
+    def subscribe(self, args):
+        asyncio.get_event_loop().run_until_complete(
+            self.subscribe_async(args[0], args[1]))
+
+    async def publish_async(self, topic, call_back):
+        if topic in self.publish_list:
+            raise ValueError("Already exists: "+topic)
+        else:
+            self.publish_list.append(topic)
             try:
                 C = MQTTClient()
-                ret = yield from C.connect(self.serverAddr)
+                ret = await C.connect(self.serverAddr)
                 while True:
-                    tmp=call_back()
-                    yield from C.publish(topic, tmp, qos=0x01)
+                    tmp = call_back()
+                    await C.publish(topic, tmp, qos=0x02)
                     self.logger.info(
                         "published " + datetime.now().strftime("%H:%M:%S") + topic)
-                yield from C.disconnect()
+                await C.disconnect()
                 self.shouldstop[topic] = False
             except ConnectException as ce:
                 self.logger.error("Connection failed: %s" % ce)
                 asyncio.get_event_loop().stop()
-        elif atype == "subscribe":
+
+    async def subscribe_async(self, topic, call_back):
+        if topic in self.subscribe_list:
+            raise ValueError("Already exists: "+topic)
+        else:
+            self.subscribe_list.append(topic)
             C = MQTTClient()
-            yield from C.connect(self.serverAddr)
-            yield from C.subscribe([(topic, QOS_2), ])
+            await C.connect(self.serverAddr)
+            await C.subscribe([(topic, QOS_2), ])
             self.logger.info("Subscribed")
             try:
                 while True:
-                    message = yield from C.deliver_message()
+                    message = await C.deliver_message()
                     packet = message.publish_packet
                     call_back(packet.payload.data)
                 self.shouldstop[topic] = False
             except ClientException as ce:
                 self.logger.error("Client exception: %s" % ce)
-        else:
-            raise ValueError("Unsupport type: " + atype)
