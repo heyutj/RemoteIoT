@@ -17,5 +17,4 @@ def getImg():
     cv2.waitKey(10)
     cv2.imshow('Video', frame)
     return cv2.imencode('.jpg', frame)[1].tostring()
-mc.pub_sub([['remote/audio', ia.getFrame, "publish"],
-             ['remote/video', getImg, "publish"]])
+mc.pub_sub([['remote/video', getImg, "publish"]])
