@@ -81,7 +81,6 @@ class MClient(object):
                     self.logger.info(
                         "published " + datetime.now().strftime("%H:%M:%S") + topic)
                 await C.disconnect()
-                self.shouldstop[topic] = False
             except ConnectException as ce:
                 self.logger.error("Connection failed: %s" % ce)
                 asyncio.get_event_loop().stop()
@@ -100,6 +99,5 @@ class MClient(object):
                     message = await C.deliver_message()
                     packet = message.publish_packet
                     call_back(packet.payload.data)
-                self.shouldstop[topic] = False
             except ClientException as ce:
                 self.logger.error("Client exception: %s" % ce)
