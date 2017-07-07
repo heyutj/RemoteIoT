@@ -3,11 +3,12 @@ import numpy as np
 
 
 class InVideo(object):
-    def __init__(self, show_video=False):
+    def __init__(self, show_video=False, device_id=0):
+        self.device_id = device_id
         self.show_video = show_video
         if self.show_video:
             cv2.namedWindow('Video')
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(device_id)
 
     def get_frame(self):
         _, frame = self.capture.read()

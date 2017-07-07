@@ -1,14 +1,9 @@
-import logging
-import asyncio
-from audio_helper import InAudio
 from hbmqtt.client import MQTTClient, ConnectException
 from hbmqtt.client import MQTTClient, ClientException
 from hbmqtt.mqtt.constants import *
-from datetime import datetime
-import os
-import numpy as np
 from hbmqtt.broker import Broker
-import time
+import asyncio
+import os
 
 
 class MServer(object):
@@ -25,79 +20,39 @@ class MServer(object):
                         'type': 'ws',
                         'max_connections': 10,
                     },
-                },
-                # 'sys_interval': 10,
-                # 'auth': {
-                #     'allow-anonymous': True,
-                #     'password-file': os.path.join(os.path.dirname(os.path.realpath(__file__)), "passwd"),
-                #     'plugins': [
-                #         'auth_file', 'auth_anonymous'
-                #     ]
-
-                # }
+                }
             }
         else:
             self.config = user_config
         self.broker = Broker(self.config)
-        formatter = "[%(asctime)s] :: %(levelname)s :: %(name)s :: %(message)s"
-        logging.basicConfig(level=logging.INFO, format=formatter)
 
-    async def start_async(self):
+    async def start(self):
         await self.broker.start()
-
-    def start(self):
-        asyncio.get_event_loop().run_until_complete(self.start_async())
-        asyncio.get_event_loop().run_forever()
 
 
 class MClient(object):
     def __init__(self, serverAddr="mqtt://127.0.0.1/"):
+
         self.serverAddr = serverAddr
-        self.logger = logging.getLogger(__name__)
-        formatter = "[%(asctime)s] %(name)s {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
-        logging.basicConfig(level=logging.INFO, format=formatter)
-        self.publish_list=[]
-        self.subscribe_list=[]
+        self.C = MQTTClient()
 
-    def publish(self, args):
-        asyncio.get_event_loop().run_until_complete(
-            self.publish_async(args[0], args[1]))
+    async def connect(self):
+        try:
+            ret = await self.C.connect(self.serverAddr)
+        except ConnectException as ce:
+            print("Connection failed: %s" % ce)
 
-    def subscribe(self, args):
-        asyncio.get_event_loop().run_until_complete(
-            self.subscribe_async(args[0], args[1]))
+    async def subscribe(self, topic):
+        await self.C.subscribe([(topic, QOS_2), ])
 
-    async def publish_async(self, topic, call_back):
-        if topic in self.publish_list:
-            raise ValueError("Already exists: "+topic)
-        else:
-            self.publish_list.append(topic)
-            try:
-                C = MQTTClient()
-                ret = await C.connect(self.serverAddr)
-                while True:
-                    tmp = call_back()
-                    await C.publish(topic, tmp, qos=0x02)
-                    self.logger.info(
-                        "published " + datetime.now().strftime("%H:%M:%S") + topic)
-                await C.disconnect()
-            except ConnectException as ce:
-                self.logger.error("Connection failed: %s" % ce)
-                asyncio.get_event_loop().stop()
+    async def get_message(self):
+        message = await self.C.deliver_message()
+        return message.publish_packet
 
-    async def subscribe_async(self, topic, call_back):
-        if topic in self.subscribe_list:
-            raise ValueError("Already exists: "+topic)
-        else:
-            self.subscribe_list.append(topic)
-            C = MQTTClient()
-            await C.connect(self.serverAddr)
-            await C.subscribe([(topic, QOS_2), ])
-            self.logger.info("Subscribed")
-            try:
-                while True:
-                    message = await C.deliver_message()
-                    packet = message.publish_packet
-                    call_back(packet.payload.data)
-            except ClientException as ce:
-                self.logger.error("Client exception: %s" % ce)
+    async def publish(self, args):
+        tmp = args[1]()
+        if tmp==None:
+            return
+        print("publishing"+args[0])
+        await self.C.publish(args[0], tmp, qos=0x02)
+        print("published")

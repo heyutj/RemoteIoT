@@ -2,18 +2,32 @@
 from pyaudio import PyAudio, paInt16
 import numpy as np
 import wave
+import threading
 
 
 class InAudio(object):
-    def __init__(self):
+    def __init__(self, device_id=0):
+        self.device_id = device_id
         self.NUM_SAMPLES = 2000
         self.SAMPLING_RATE = 8000
         p = PyAudio()
         self.stream = p.open(format=paInt16, channels=1, rate=self.SAMPLING_RATE,
                              input=True, frames_per_buffer=self.NUM_SAMPLES)
-
+        self.buffer=[]
+    def start(self):
+        self.t = threading.Thread(target=self.record_frame)
+        self.t.start()
+    def record_frame(self):
+        while True:
+            self.buffer.append(self.stream.read(self.NUM_SAMPLES))
+    def stop(self):
+        self.t.stop()
+        self.buffer=[]
     def get_frame(self):
-        return self.stream.read(self.NUM_SAMPLES)
+        if self.buffer==[]:
+            return None
+        else:
+            return self.buffer.pop(0)
 
 
 class OutAudio(object):
@@ -40,7 +54,7 @@ class OutAudio(object):
         wf.close()
         self.clean_buffer()
 
-    def play_frame(self,data):
+    def play_frame(self, data):
         self.stream.write(bytes(data))
 
     def __del__(self):
