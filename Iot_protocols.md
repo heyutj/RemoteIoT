@@ -3,7 +3,7 @@
 |种类|值|
 |---|---|
 |type|ctrl|
-|device_type|video/audio/light/switch|
+|device_type|video/audio|
 |device_id|int number|
 
 
@@ -12,7 +12,7 @@ example:
 {
     "type":"ctrl",
     "device_type":"video",
-    "device_id":"id",
     "action":"on"
 }
+{"type":"ctrl","device_type":"video","action":"on"}
 ```

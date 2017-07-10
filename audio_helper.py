@@ -7,8 +7,7 @@ import time
 
 
 class InAudio(object):
-    def __init__(self, device_id=0):
-        self.device_id = device_id
+    def __init__(self):
         self.NUM_SAMPLES = 2000
         self.SAMPLING_RATE = 8000
         p = PyAudio()

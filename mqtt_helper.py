@@ -46,13 +46,15 @@ class MClient(object):
         await self.C.subscribe([(topic, QOS_2), ])
 
     async def get_message(self):
-        message = await self.C.deliver_message()
-        return message.publish_packet
+        return await self.C.deliver_message()
+        # return message.publish_packet
 
     async def publish(self, args):
-        tmp = args[1]()
+        # [topic,data(),flag]
+        if args[2]:
+            tmp=args[1]
+        else:
+            tmp = args[1]()
         if tmp==None:
             return
-        # print("publishing"+args[0])
         await self.C.publish(args[0], tmp, qos=0x02)
-        # print("published")
