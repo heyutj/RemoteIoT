@@ -22,7 +22,7 @@ class IotDevice(object):
         await self.on_video(0, "on")
         await self.on_audio(0, "on")
         while True:
-            print("going")
+            # print("going")
             # if self.action_buffer == []:
             #     payload = await self.mqtt.get_message()
             #     if payload and payload.topic == 'ctrl':
@@ -49,11 +49,13 @@ class IotDevice(object):
     async def on_video(self, device_id, action):
         topic = "Iot/Video/" + str(device_id)
         if action == "on":
-            self.iv = InVideo(show_video=True, device_id=device_id)
+            self.iv = InVideo(device_id=device_id)
+            self.iv.start()
             self.timer_dict[topic] = threading.Timer(self.video_frame, self.add_action, (
                 self.video_frame, "publish", (topic, self.iv.get_frame)))
             self.timer_dict[topic].start()
         elif action == "off":
+            self.iv.stop()
             self.timer_dict[topic].stop()
 
     async def on_audio(self, device_id, action):

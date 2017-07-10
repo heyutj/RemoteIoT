@@ -53,6 +53,6 @@ class MClient(object):
         tmp = args[1]()
         if tmp==None:
             return
-        print("publishing"+args[0])
+        # print("publishing"+args[0])
         await self.C.publish(args[0], tmp, qos=0x02)
-        print("published")
+        # print("published")

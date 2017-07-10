@@ -3,6 +3,7 @@ from pyaudio import PyAudio, paInt16
 import numpy as np
 import wave
 import threading
+import time
 
 
 class InAudio(object):
